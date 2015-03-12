@@ -3,7 +3,12 @@ package nulls
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"errors"
 	"time"
+)
+
+const (
+	timeFormat = "2006-01-02T15:04:05-0700"
 )
 
 // NullTime replaces sql.NullTime with an implementation
@@ -37,7 +42,12 @@ func (ns NullTime) Value() (driver.Value, error) {
 // proper JSON representation.
 func (ns NullTime) MarshalJSON() ([]byte, error) {
 	if ns.Valid {
-		return json.Marshal(ns.Time)
+		if y := ns.Time.Year(); y < 0 || y >= 10000 {
+			// RFC 3339 is clear that years are 4 digits exactly.
+			// See golang.org/issue/4556#c15 for more discussion.
+			return nil, errors.New("NullTime.MarshalJSON: year outside of range [0,9999]")
+		}
+		return []byte(ns.Time.Format(timeFormat)), nil
 	}
 	return json.Marshal(nil)
 }
@@ -51,8 +61,8 @@ func (ns *NullTime) UnmarshalJSON(text []byte) error {
 		return nil
 	}
 
-	t := time.Time{}
-	err := t.UnmarshalJSON(text)
+	// Fractional seconds are handled implicitly by Parse.
+	t, err := time.Parse(timeFormat, string(txt))
 	if err == nil {
 		ns.Time = t
 		ns.Valid = true
