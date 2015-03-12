@@ -47,7 +47,8 @@ func (ns NullTime) MarshalJSON() ([]byte, error) {
 			// See golang.org/issue/4556#c15 for more discussion.
 			return nil, errors.New("NullTime.MarshalJSON: year outside of range [0,9999]")
 		}
-		return []byte(ns.Time.Format(timeFormat)), nil
+		formatted := ns.Time.Format(timeFormat)
+		return json.Marshal(formatted)
 	}
 	return json.Marshal(nil)
 }
